@@ -1,4 +1,28 @@
 "use client";
+import React from "react";
+
+function unwrapBold(range: Range) {
+  const contents = range.extractContents();
+
+  const walker = document.createTreeWalker(contents, NodeFilter.SHOW_ELEMENT, {
+    acceptNode: (node) => {
+      return node.nodeName === "STRONG" || node.nodeName === "B"
+        ? NodeFilter.FILTER_ACCEPT
+        : NodeFilter.FILTER_SKIP;
+    },
+  });
+
+  let node;
+  while ((node = walker.nextNode())) {
+    const parent = node.parentNode;
+    while (node.firstChild) {
+      parent?.insertBefore(node.firstChild, node);
+    }
+    parent?.removeChild(node);
+  }
+
+  range.insertNode(contents);
+}
 
 function RichTextEditor() {
   function handleAction(action: string) {
@@ -20,33 +44,67 @@ function RichTextEditor() {
   }
 
   function bold() {
-    const selection = window.getSelection();
-    const element = document.getElementById("myElement");
-    if (!selection) {
-      console.log("No text selected");
-      return;
-    }
+    toggleBold();
+    function toggleBold() {
+      const selection = window.getSelection();
+      if (!selection) return;
+      if (!selection.rangeCount) return;
 
-    if (selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
-      console.log(range);
-      if (element?.contains(range.commonAncestorContainer)) {
-        const selectedText = selection.toString();
-        console.log(selectedText);
+      if (range.collapsed) return; // No text selected
+
+      // Create a span to inspect the selection's formatting
+      const span = document.createElement("span");
+      span.appendChild(range.cloneContents());
+
+      const alreadyBold = span.querySelector("strong, b");
+      if (alreadyBold) {
+        // If it's bold, unwrap <strong>/<b>
+        unwrapBold(range);
+      } else {
+        // If not bold, wrap with <strong>
+        const strong = document.createElement("strong");
+        strong.appendChild(range.extractContents());
+        range.insertNode(strong);
       }
     }
   }
+
   function italic() {
-    console.log("Make it italic");
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    const range = selection.getRangeAt(0);
+    if (range.collapsed) return; // No text selected
+    // If not bold, wrap with <i>
+    const italic = document.createElement("i");
+
+    italic.appendChild(range.extractContents());
+
+    range.insertNode(italic);
   }
+
   function underline() {
-    console.log("Make it underline");
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    const range = selection.getRangeAt(0);
+    if (range.collapsed) return; // No text selected
+    // If not bold, wrap with <i>
+    const underline = document.createElement("u");
+
+    underline.appendChild(range.extractContents());
+
+    range.insertNode(underline);
   }
+
   function undo() {
-    console.log("Make it undo");
+    // basic undo/redo can be delegated to document.execCommand as fallback
+    // (deprecated) or use a proper history stack
+    document.execCommand("undo");
   }
   function redo() {
-    console.log("Make it redo");
+    document.execCommand("redo");
   }
 
   return (
